@@ -1,5 +1,5 @@
 import cv2
-from load_dataset_paths import load_dataset_paths
+from helpers import load_dataset_paths
 
 ROOT_IMG_DIR = '/home/cabroderick/Data/Images/' # root directory where all JSONs are contained
 ROOT_ANN_DIR = '/home/cabroderick/Data/Labels/'

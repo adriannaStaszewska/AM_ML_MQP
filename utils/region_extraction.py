@@ -1,15 +1,16 @@
 import json
 from shapely.geometry.polygon import Polygon
+from shapely.geometry import Point
 from shapely.validation import make_valid
 from shapely.geometry import box
 import cv2
 import numpy as np
+import math
 
-SCALE_RATIO = 2
 ROOT_IMG_DIR = "/work/azstaszewska/Data/Stitched Final/Images/"
-IMG_OUT_DIR = '/work/azstaszewska/Data/Final Images/'
-LABELS_OUT_DIR = '/work/azstaszewska/Data/Final Labels/'
-sets_name = [ 'G8/','G9/','H5/', 'H4/', 'H6/','H7/', 'J3/','J4/','K0R/','K5/','Q0/','Q6/','R0/','R2/','R6/']#['G0/', 'H0/']
+IMG_OUT_DIR = '/work/azstaszewska/Data/Full data/Images/'
+LABELS_OUT_DIR = '/work/azstaszewska/Data/Full data/Labels/'
+sets_name =[ "G0/", 'G8/','G9/','H0/','H5/', 'H4/', 'H6/','H7/', 'J3/','J4/','K0R/','K5/','Q0/','Q6/','R0/','R2/','R6/', 'Q8/']#
 
 
 def normalize_dimensions(col_min, col_max, row_min, row_max):
@@ -74,18 +75,22 @@ for set in sets_name:
         for l in instances:
             if l["shape_type"] == "polygon":
                 instance = Polygon(l["points"])
-            else:
+            elif l["shape_type"] == "rectangle":
                 instance = box(l["points"][0][0], l["points"][0][1], l["points"][1][0], l["points"][1][1])
+            elif l['shape_type'] == 'circle':
+                center = (l["points"][0][0], l["points"][0][1])
+                buffer = math.sqrt((center[0]-l["points"][1][0])**2+(center[1]-l["points"][1][1])**2)
+                instance = Point(center).buffer(buffer)
             if instance.intersects(region) and (make_valid(instance).intersection(make_valid(region)).area >
                                                 0.9*make_valid(instance).area):
                 new_ins = [[p[0]-col_min, p[1]-row_min] for p in l["points"]]
                 new_label = {}
                 new_label["points"] = new_ins
                 new_label["label"] = l["label"]
+                new_label["shape_type"] = l["shape_type"]
                 shapes.append(new_label)
         new_annot["shapes"] = shapes
         cv2.imwrite(IMG_OUT_DIR+set+set[:-1]+'_'+ str(i)+'.png', cropped_img)
 
         with open(LABELS_OUT_DIR+set+set[:-1]+'_'+ str(i)+".json", 'w') as outfile:
             json.dump(new_annot, outfile)
-

@@ -5,9 +5,10 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from normalize_classname import normalize_classname
+from helpers import normalize_classname
 
-ROOT_IMG_DIR = '/home/cabroderick/Stitched/'
+ROOT_IMG_DIR = '/work/azstaszewska/Data/Full data/Images/'
+ROOT_LABEL_DIR = '/work/azstaszewska/Data/Full data/Labels/'
 DIRS = ['G0',
 'G7',
 'G8',
@@ -31,6 +32,7 @@ DIRS = ['G0',
 'K0',
 'K0R',
 'K1',
+'K1R',
 'K4',
 'K5',
 'Q0',
@@ -38,6 +40,7 @@ DIRS = ['G0',
 'Q4',
 'Q5',
 'Q6',
+'Q8',
 'Q9',
 'R0',
 'R2',
@@ -52,71 +55,89 @@ def normalize_dimensions(col_min, col_max, row_min, row_max):
     return max(col_min, 0), col_max, max(row_min, 0), row_max
 
 for d in DIRS:
-    print(d)
-
+    image_count = 0
     data[d] = {'lack of fusion porosity': [], 'keyhole porosity': []}
+    for filename in os.listdir(ROOT_IMG_DIR + d + "/"):
+        image_count += 1
+        ann_path = ROOT_LABEL_DIR + d + "/"+ filename[:-4]+".json"
+        image_path = ROOT_IMG_DIR + d + "/" + filename
 
-    ann_path = ROOT_IMG_DIR + d + "_merged.json"
-    image_path = ROOT_IMG_DIR + d + ".png"
+        image = cv2.imread(image_path)
 
-    if not os.path.exists(image_path):
-        image_path = ROOT_IMG_DIR + d + ".tif"
+        with open(ann_path, 'r') as f_ann:  # read JSON
+            annotation_json = json.load(f_ann)
 
-    image = cv2.imread(image_path)
+        for a in annotation_json["shapes"]:
+            label = normalize_classname(a['label'])
+            if label == 'lack of fusion porosity' or a['label'] == 'keyhole porosity':
+                if a['shape_type'] == 'rectangle' or len(a['points']) == 2:
+                    # extract row and col data and crop image to annotation size
+                    col_min, col_max = int(min(a['points'][0][0], a['points'][1][0])), int(
+                        max(a['points'][0][0], a['points'][1][0]))
+                    row_min, row_max = int(min(a['points'][0][1], a['points'][1][1])), int(
+                        max(a['points'][0][1], a['points'][1][1]))
+                    col_min, col_max, row_min, row_max = normalize_dimensions(col_min, col_max, row_min, row_max)
+                    cropped_img = image[row_min:row_max, col_min:col_max]  # crop image to size of bounding box
+                    cropped_img_gray = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2GRAY)
+                    edged = cv2.Canny(cropped_img_gray, 30, 200)
 
-    with open(ann_path, 'r') as f_ann:  # read JSON
-        annotation_json = json.load(f_ann)
+                    # apply contour to image and fill
+                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                    dilated = cv2.dilate(edged, kernel)
+                    contours, hierarchy = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    for a in annotation_json["shapes"]:
-        label = normalize_classname(a['label'])
-        if label == 'lack of fusion porosity' or a['label'] == 'keyhole porosity':
-            if a['shape_type'] == 'rectangle':
-                # extract row and col data and crop image to annotation size
-                col_min, col_max = int(min(a['points'][0][0], a['points'][1][0])), int(
-                    max(a['points'][0][0], a['points'][1][0]))
-                row_min, row_max = int(min(a['points'][0][1], a['points'][1][1])), int(
-                    max(a['points'][0][1], a['points'][1][1]))
-                col_min, col_max, row_min, row_max = normalize_dimensions(col_min, col_max, row_min, row_max)
-                cropped_img = image[row_min:row_max, col_min:col_max]  # crop image to size of bounding box
-                cropped_img_gray = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2GRAY)
-                edged = cv2.Canny(cropped_img_gray, 30, 200)
+                    total_area = sum([cv2.contourArea(c) for c in contours])
 
-                # apply contour to image and fill
-                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
-                dilated = cv2.dilate(edged, kernel)
-                contours, hierarchy = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                elif a['shape_type'] == 'polygon':
+                    print('poly')
 
-                total_area = sum([cv2.contourArea(c) for c in contours])
+                    # generate mask from polygon points
+                    points = []
+                    [points.append(coord) for coord in a['points']]
+                    points = np.array(points, dtype=np.int32)
+                    polygon_mask = np.zeros(image.shape, dtype=np.uint8)
+                    cv2.fillPoly(polygon_mask, [points], (255, 255, 255))
 
-            elif a['shape_type'] == 'polygon':
-                # generate mask from polygon points
-                points = []
-                [points.append(coord) for coord in a['points']]
-                points = np.array(points, dtype=np.int32)
-                polygon_mask = np.zeros(image.shape, dtype=np.uint8)
-                cv2.fillPoly(polygon_mask, [points], (255, 255, 255))
+                    # apply mask
+                    masked_img = cv2.bitwise_and(image, polygon_mask)
+                    black_pixels = np.where(
+                        (masked_img[:, :, 0] == 0) &
+                        (masked_img[:, :, 1] == 0) &
+                        (masked_img[:, :, 2] == 0)
+                    )
 
-                # apply mask
-                cropped_img = cv2.bitwise_and(image, polygon_mask)
-                black_pixels = np.where(
-                    (cropped_img[:, :, 0] == 0) &
-                    (cropped_img[:, :, 1] == 0) &
-                    (cropped_img[:, :, 2] == 0)
-                )
+                    threshold = (0, 150, 200)
 
-                cropped_img[black_pixels] = (0, 255, 255)
+                    g = image[:, :, 1]
+                    r = image[:, :, 2]
 
-                cropped_img_gray = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2GRAY)
-                edged = cv2.Canny(cropped_img_gray, 30, 200)
+                    r = r.flatten()
+                    r = [val for val in r if val > threshold[2]]
+                    avg_r = np.average(r)
+                    avg_b = 0
+                    g = g.flatten()
+                    g = [val for val in g if val > threshold[1]]
+                    avg_g = np.average(g)
 
-                # apply contour to image and fill
-                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
-                dilated = cv2.dilate(edged, kernel)
-                contours, hierarchy = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    avg_color = (avg_b, avg_g, avg_r)
+                    masked_img[black_pixels] = avg_color
 
-                total_area = sum([cv2.contourArea(c) for c in contours])
-            class_type = label
-            data[d][class_type].append(total_area)
+                    cropped_img_gray = cv2.cvtColor(masked_img, cv2.COLOR_BGR2GRAY)
+                    edged = cv2.Canny(cropped_img_gray, 30, 200)
+
+                    # apply contour to image and fill
+                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                    dilated = cv2.dilate(edged, kernel)
+                    contours, hierarchy = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                    total_area = sum([cv2.contourArea(c) for c in contours])
+                class_type = label
+                if total_area > 80:
+                    data[d][class_type].append(total_area)
+
+    print(d + "  "+str(image_count))
+
+
 new_df = pd.DataFrame.from_dict(data)
 new_df.to_csv("area_dist.csv")
 
@@ -146,5 +167,3 @@ bin_size = int(len(all_areas_LOF)/3)
 print(f'Bin 1: 0, {sorted_lof[bin_size]}')
 print(f'Bin 2: {sorted_lof[bin_size]}, {sorted_lof[bin_size*2]}')
 print(f'Bin 3: {sorted_lof[bin_size*2+1]}, {sorted_lof[-1]}')
-
-
