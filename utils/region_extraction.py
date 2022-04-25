@@ -10,7 +10,7 @@ import math
 ROOT_IMG_DIR = "/work/azstaszewska/Data/Stitched Final/Images/"
 IMG_OUT_DIR = '/work/azstaszewska/Data/Full data/Images/'
 LABELS_OUT_DIR = '/work/azstaszewska/Data/Full data/Labels/'
-sets_name =[ "G0/", 'G8/','G9/','H0/','H5/', 'H4/', 'H6/','H7/', 'J3/','J4/','K0R/','K5/','Q0/','Q6/','R0/','R2/','R6/', 'Q8/']#
+sets_name =[ "G0/", "Q0/", "R2/", "Q6/", "Q8/"]#
 
 
 def normalize_dimensions(col_min, col_max, row_min, row_max):

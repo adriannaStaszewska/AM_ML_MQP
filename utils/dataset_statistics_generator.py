@@ -40,7 +40,6 @@ DIRS = ['G0',
 'Q4',
 'Q5',
 'Q6',
-'Q8',
 'Q9',
 'R0',
 'R2',
@@ -77,20 +76,19 @@ for d in DIRS:
                     row_min, row_max = int(min(a['points'][0][1], a['points'][1][1])), int(
                         max(a['points'][0][1], a['points'][1][1]))
                     col_min, col_max, row_min, row_max = normalize_dimensions(col_min, col_max, row_min, row_max)
-                    cropped_img = image[row_min:row_max, col_min:col_max]  # crop image to size of bounding box
-                    cropped_img_gray = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2GRAY)
+                    masked_img = image[row_min:row_max, col_min:col_max]  # crop image to size of bounding box
+                    brightness_adj = cv2.addWeighted(masked_img,1.5,np.zeros(masked_img.shape, image.dtype),0,0)
+                    cropped_img_gray = cv2.cvtColor(brightness_adj, cv2.COLOR_BGR2GRAY)
                     edged = cv2.Canny(cropped_img_gray, 30, 200)
 
                     # apply contour to image and fill
-                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
                     dilated = cv2.dilate(edged, kernel)
                     contours, hierarchy = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
                     total_area = sum([cv2.contourArea(c) for c in contours])
 
                 elif a['shape_type'] == 'polygon':
-                    print('poly')
-
                     # generate mask from polygon points
                     points = []
                     [points.append(coord) for coord in a['points']]
@@ -121,18 +119,18 @@ for d in DIRS:
 
                     avg_color = (avg_b, avg_g, avg_r)
                     masked_img[black_pixels] = avg_color
-
-                    cropped_img_gray = cv2.cvtColor(masked_img, cv2.COLOR_BGR2GRAY)
+                    brightness_adj = cv2.addWeighted(masked_img,1.5,np.zeros(image.shape, image.dtype),0,0)
+                    cropped_img_gray = cv2.cvtColor(brightness_adj, cv2.COLOR_BGR2GRAY)
                     edged = cv2.Canny(cropped_img_gray, 30, 200)
 
                     # apply contour to image and fill
-                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
                     dilated = cv2.dilate(edged, kernel)
                     contours, hierarchy = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
                     total_area = sum([cv2.contourArea(c) for c in contours])
                 class_type = label
-                if total_area > 80:
+                if total_area > 1500:
                     data[d][class_type].append(total_area)
 
     print(d + "  "+str(image_count))
@@ -164,6 +162,6 @@ plt.savefig("keyhole_freq.png")
 
 sorted_lof = sorted(all_areas_LOF)
 bin_size = int(len(all_areas_LOF)/3)
-print(f'Bin 1: 0, {sorted_lof[bin_size]}')
+print(f'Bin 1: {sorted_lof[0]}, {sorted_lof[bin_size]}')
 print(f'Bin 2: {sorted_lof[bin_size]}, {sorted_lof[bin_size*2]}')
 print(f'Bin 3: {sorted_lof[bin_size*2+1]}, {sorted_lof[-1]}')

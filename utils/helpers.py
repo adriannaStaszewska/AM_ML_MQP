@@ -31,7 +31,7 @@ def load_dataset_paths(root_img_dir, root_annotation_dir, dirs):
 
     for i in range(len(dirs)):
         i_dir = root_img_dir + dirs[i] + '/'
-        a_dir = root_annotation_dir + 'Labeled ' + dirs[i] + '/'
+        a_dir = root_annotation_dir + dirs[i] + '/'
         for file in os.listdir(i_dir):
             i_id = file[:-4]
             if os.path.exists(i_dir + i_id + '.tif'):
@@ -48,3 +48,8 @@ def load_dataset_paths(root_img_dir, root_annotation_dir, dirs):
         return image_paths, annotation_paths
     else:
         return None, None
+
+
+def bounding_box(points):
+    x_coordinates, y_coordinates = zip(*points)
+    return [(min(x_coordinates), min(y_coordinates)), (max(x_coordinates), max(y_coordinates))]
