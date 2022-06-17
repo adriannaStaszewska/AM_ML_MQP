@@ -20,7 +20,7 @@ y1.set_xlabel('Iterations')
 y2 = y1.twinx()
 y1.set_ylim(0,1.0)
 parsed=[]
-with open('/work/azstaszewska/Models/detectron_2class_trimmed_tight_0005/metrics.json') as f:
+with open('/home/azstaszewska/Models/final_model_full_1/metrics.json') as f:
     # whole = f.read()
     # # #pattern = re.compile(r'json_stats: (\{.*\})')
     # pattern = re.compile(r'\"data_time\":.*')
@@ -68,8 +68,8 @@ with open('/work/azstaszewska/Models/detectron_2class_trimmed_tight_0005/metrics
     #grid()
     #??
     y1.legend()
-    savefig('/work/azstaszewska/fig.png')
+    savefig('/home/azstaszewska/fig.png')
     show()
     #fig2 = figure(figsize=(8,6), dpi=300)
     #fig2.plot(_iter, _accuracy_cls, color="red", linewidth=0.5, linestyle="-",label='cls_accuracy')
-    #savefig('/work/azstaszewska/fig2_cls_acc.png')
+    #savefig('/home/azstaszewska/fig2_cls_acc.png')
