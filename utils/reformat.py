@@ -19,13 +19,11 @@ dataset = []
 OUT_FILE = sys.argv[2]
 IN_FILE = sys.argv[1]
 
-ROOT_IMG_DIR = '/work/azstaszewska/Data/Full data/Images/'
-ROOT_ANN_DIR = '/work/azstaszewska/Data/Full data/Labels/'
+ROOT_IMG_DIR = '/home/azstaszewska/Data/Final data/Images/'
+ROOT_ANN_DIR = '/home/azstaszewska/Data/Final data/Labels/'
 
-CLASSES = ['small lack of fusion porosity', 'medium lack of fusion porosity', 'large lack of fusion porosity', 'keyhole porosity']
+CLASSES = ['lack of fusion', 'keyhole']
 
-THRESHOLD_1 = 4143.5
-THRESHOLD_2 = 22438.5
 
 
 #get set from the file
@@ -36,9 +34,7 @@ id = 0
 
 for f in img_dirs:
     image_data = {}
-    image_path = ROOT_IMG_DIR+f+".png"
-    if not exists(image_path):
-        image_path = ROOT_IMG_DIR+f+".tif"
+    image_path = ROOT_IMG_DIR+f
     if not exists(image_path):
         print("DOESNT exist")
         print(image_path)
@@ -48,17 +44,18 @@ for f in img_dirs:
     image = cv2.imread(image_path)
     height = image.shape[0]
     width = image.shape[1]
+    print(height, width)
 
-
-    ann_path = ROOT_ANN_DIR+f+".json"
+    ann_path = ROOT_ANN_DIR+f[:-4]+".json"
     f_ann = open(ann_path, )
     annotation_json = json.load(f_ann)
+
+    print(annotation_json["shapes"])
 
     image_data["file_name"] = image_path
     image_data["image_id"] = id
     image_data["height"] = int(height)
     image_data["width"] = int(width)
-
 
     annotations = []
     i = 0
@@ -80,15 +77,18 @@ for f in img_dirs:
             new_points = [[center[0]-radius, center[1]-radius], [center[0]+radius, center[1]+radius]]
             instance["points"] = new_points
 
-        if instance["shape_type"] == 'rectangle':
+        if instance["shape_type"] == 'rectangle' and len(instance['points'])==2:
             # extract row and col data and crop image to annotation size
+            print(instance['points'][0][0], instance['points'][1][0])
             col_min, col_max = int(min(instance['points'][0][0], instance['points'][1][0])), int(
                 max(instance['points'][0][0], instance['points'][1][0]))
             row_min, row_max = int(min(instance['points'][0][1], instance['points'][1][1])), int(
                 max(instance['points'][0][1], instance['points'][1][1]))
+            print(col_min, col_max, row_min, row_max)
             col_min, col_max, row_min, row_max = normalize_dimensions(col_min, col_max, row_min, row_max)
 
             new_instance['bbox'] = [col_min, row_min, col_max, row_max]
+            print(new_instance['bbox'])
 
             masked_img = image[row_min:row_max, col_min:col_max]  # crop image to size of bounding box
             #brightness_adj = cv2.addWeighted(masked_img,1.5,np.zeros(masked_img.shape, image.dtype),0,0)
@@ -96,7 +96,7 @@ for f in img_dirs:
             edged = cv2.Canny(cropped_img_gray, 100, 200)
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
 
-            '''
+
             # apply contour to image and fill
             if (col_max-col_min)*(row_max-row_min)>7000:
                 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (6, 6))
@@ -104,7 +104,7 @@ for f in img_dirs:
                 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
             else:
                 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
-            '''
+
 
             dilated = cv2.dilate(edged, kernel)
             contours, hierarchy = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -113,8 +113,8 @@ for f in img_dirs:
             cv2.fillPoly(polygon, contours, color)
             print(image_path)
 
-            cv2.imwrite(image_path[:-4]+"_poly_"+str(i)+".png", masked_img)
-            cv2.imwrite(image_path[:-4]+"_mask_"+str(i)+".png", polygon)
+            #cv2.imwrite(image_path[:-4]+"_poly_"+str(i)+".png", masked_img)
+            #cv2.imwrite(image_path[:-4]+"_mask_"+str(i)+".png", polygon)
             i+=1
             #polygon = np.zeros(masked_img.shape)
             #color = [255, 255, 255]
@@ -144,7 +144,7 @@ for f in img_dirs:
                     new_instance["segmentation"].append(cnt)
 
 
-        elif instance["shape_type"] == 'polygon':
+        elif instance["shape_type"] == 'polygon' or len(instance['points'])>2:
             points = []
             [points.append(coord) for coord in instance['points']]
 
@@ -198,8 +198,8 @@ for f in img_dirs:
             polygon = np.zeros(masked_img.shape)
             color = [255, 255, 255]
             cv2.fillPoly(polygon, contours, color)
-            cv2.imwrite("/work/azstaszewska/Data/Annotations viz/"+image_path[:-4]+"_poly_"+str(i)+".png", masked_img)
-            cv2.imwrite("/work/azstaszewska/Data/Annotations viz/"+image_path[:-4]+"_mask_"+str(i)+".png", polygon)
+            #cv2.imwrite("/work/azstaszewska/Data/Annotations viz/"+image_path[:-4]+"_poly_"+str(i)+".png", masked_img)
+            #cv2.imwrite("/work/azstaszewska/Data/Annotations viz/"+image_path[:-4]+"_mask_"+str(i)+".png", polygon)
             i+=1
 
             area = sum([cv2.contourArea(c) for c in contours])
@@ -233,21 +233,13 @@ for f in img_dirs:
                     cnt.append(new_c[0][1])
                     new_instance["segmentation"].append(cnt)
 
-        if area > 1500:
-            print(new_instance["segmentation"])
-            if class_name == 'lack of fusion porosity':
-                    if area < THRESHOLD_1:
-                        class_name = "small lack of fusion porosity"
-                    elif area < THRESHOLD_2:
-                        class_name = "medium lack of fusion porosity"
-                    else:
-                        class_name = "large lack of fusion porosity"
+        if area > 1000:
+            #print(new_instance["segmentation"])
             new_instance["area"] = area
-            new_instance["category_id"] = CLASSES.index(class_name)
+            new_instance["category_id"] = CLASSES.index(normalize_classname(class_name))
             annotations.append(new_instance)
             print(new_instance)
-
-'''
+    f_ann.close()
     id += 1
     image_data["annotations"] = annotations
     dataset.append(image_data)
@@ -295,7 +287,7 @@ for f in img_dirs:
     new_image_data["width"] = int(width)
     dataset.append(new_image_data)
 
-    print(new_image_data)
+    #print(new_image_data)
 
     id += 1
 
@@ -399,7 +391,7 @@ for f in img_dirs:
     id += 1
     dataset.append(new_image_data)
 
-    aug = imgaug.augmenters.SaltAndPepper(0.025)
+    aug = imgaug.augmenters.SaltAndPepper(0.015)
     image_io = imageio.imread(image_path)
 
     img_aug = aug(image=image_io)
@@ -416,7 +408,7 @@ for f in img_dirs:
     id += 1
     dataset.append(new_image_data)
 
-'''
+
 '''
 
     augs = T.AugmentationList([
@@ -459,7 +451,6 @@ for f in img_dirs:
     id += 1
     dataset.append(new_image_data)
 '''
-'''
+
 with open(OUT_FILE, 'w') as f_ann:  # write back to the JSON
     json.dump(dataset, f_ann, indent=2)
-'''

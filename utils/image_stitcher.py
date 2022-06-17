@@ -2,17 +2,18 @@ from PIL import Image, ImageDraw
 import os
 import json
 from shapely.geometry import Polygon
+import labelme
+import cv2
+import base64
 
 # list of directories where images are contained
-IMAGES_DIRS = ['G0/', 'G9/', 'H0/', 'H4/', 'H5/', 'H6/', 'H8/', 'H9/', 'J0/', 'J1/', 'J3/', 'J4/', 'J7/',
-               'J8/', 'K0/', 'Q0/', 'Q3/', 'Q5/', 'Q9/', 'R2/', 'R6/', 'R7/']
-IMAGE_ROOT = "../Images/"
-LABELS_ROOT = "../Labels/"
+IMAGES_DIRS = ["J4R/"]#, "H8/", "H9/", "J0/", "J1/", "J3R/", "J5/", "J7/", "J8/", "J9/", "K0/", "K4/", "Q3/", "Q5/", "Q9/", "R7/"]
+LABELS_ROOT = '/home/azstaszewska/Data/Full data/Labels/'
+IMAGE_ROOT = '/home/azstaszewska/Data/Full data/Images/'
 X = 1280
 Y = 1024
 
-color_dict = {'gas entrapment porosity': "blue", 'lack of fusion porosity': "red", 'keyhole porosity': "purple",
-              "other": "green"}
+color_dict = {'gas entrapment porosity': "blue", 'lack of fusion porosity': "red", 'keyhole porosity': "purple", "other": "green"}
 
 
 def normalize_classname(class_name):  # normalize the class name to one used by the model
@@ -66,6 +67,11 @@ def stitch_all():
         annotations['shapes'] = {}
 
         all_files = os.listdir(IMAGE_ROOT + set)
+        print(all_files)
+        split = [x.split("_") for x in all_files]
+        if len(split) == 3:
+            continue
+        print([x.split("_")[1] for x in all_files])
         x_y = [(int(x.split("_")[1].split(".")[0][0]), int(x.split("_")[1].split(".")[0][1:])) for x in all_files]
         x_dim = max(x_y)[1]
         y_dim = max(x_y)[0]
@@ -74,6 +80,10 @@ def stitch_all():
         image_borders = Image.new('RGB', (X * x_dim, Y * y_dim))
 
         for filename in os.listdir(IMAGE_ROOT + set):
+            split = filename.split("_")
+            if len(split) == 3:
+                continue
+
             print(filename)
             img_path = IMAGE_ROOT + set + filename
             coordinates = filename.split("_")
@@ -90,13 +100,13 @@ def stitch_all():
             image_borders.paste(im, (x_shift, y_shift))
             pixels = image_borders.load()
 
-            labels_file_path = LABELS_ROOT + "Labeled " + set + filename[:-4] + ".json"
+            labels_file_path = LABELS_ROOT + set + filename[:-4] + ".json"
             if os.path.exists(labels_file_path):
                 f_ann = open(labels_file_path, )
+                annotation_json = json.load(f_ann)
             else:
-                labels_file_path = LABELS_ROOT + "Labeled " + set + filename[:-4] + "_20X_YZ.json"
-                f_ann = open(labels_file_path, )
-            annotation_json = json.load(f_ann)
+                labels_file_path = LABELS_ROOT+ set + filename[:-4] + ".json"
+                annotation_json = {"shapes": []}
 
             for label in annotation_json["shapes"]:
                 new_label = {}
@@ -122,7 +132,7 @@ def stitch_all():
                 annotations["shapes"][str(row) + "_" + str(col)].append(new_label)
 
         image2 = image_borders.copy()
-        image.save("../Stitched/" + set[:-1] + ".png")
+        image.save("/home/azstaszewska/Data/MS Data/Stitched Final/" + set[:-1] + ".png")
 
         img_annotated = ImageDraw.Draw(image_borders)
         for x in range(0, x_dim):
@@ -185,13 +195,19 @@ def stitch_all():
                 # print(instance["points"])
                     merged_annotations["shapes"].append(instance)
             already_merged.append([int(row), int(col)])
-
+        '''
         img_annotated2 = ImageDraw.Draw(image_borders)
         for defect in merged_annotations["shapes"]:
             xy = [tuple(x) for x in defect["points"]]
             img_annotated2.polygon(xy, fill=None, outline=color_dict[defect["label"]], width=1)
-        image_borders.save("../Stitched/" + set[:-1] + "_annotated_merged.png")
-        with open("../Stitched/" + set[:-1] + '_merged.json', 'w') as outfile:
+        image_borders.save("/home/azstaszewska/Data/Stitched Images/" + set[:-1] + "_annotated_merged.png")
+        '''
+        data = labelme.LabelFile.load_image_file("/home/azstaszewska/Data/MS Data/Stitched Final/" + set[:-1] + ".png")
+        merged_annotations['imageData'] = base64.b64encode(data).decode('utf-8')
+        merged_annotations['imagePath'] ="/home/azstaszewska/Data/MS Data/Stitched Final/"+ set[:-1] + '.json',
+        merged_annotations['flags'] = {}
+        merged_annotations['version'] = "4.6.0"
+        with open("/home/azstaszewska/Data/MS Data/Stitched Final/"+ set[:-1] + '.json', 'w') as outfile:
             json.dump(merged_annotations, outfile)
 
 def stitch_set(set, merge_way_raw, folder_name):
@@ -225,11 +241,11 @@ def stitch_set(set, merge_way_raw, folder_name):
             image.paste(img, (x_shift, y_shift))
 
             # get labels
-            labels_file_path = LABELS_ROOT + "Labeled " + set + path[:-4] + ".json"
+            labels_file_path = LABELS_ROOT + set + path[:-4] + ".json"
             if os.path.exists(labels_file_path):
                 f_ann = open(labels_file_path, )
             else:
-                labels_file_path = LABELS_ROOT + "Labeled " + set + path[:-4] + "_20X_YZ.json"
+                labels_file_path = LABELS_ROOT + set + path[:-4] + ".json"
                 f_ann = open(labels_file_path, )
             annotation_json = json.load(f_ann)
 
