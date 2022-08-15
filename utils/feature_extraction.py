@@ -148,8 +148,7 @@ headers = ["sample", "polygon", "class", "area", "perimeter", "major_axis", "min
 sample_headers = ["set", "area", "pore_area", "pore_area_keyhole", "pore_area_lof", "porosity", "mean_distance", "laser_power", "scan_speed", "hatch_spacing", "sim_melt_pool_width", "mean_area", "mean_area_keyhole", "mean_area_lof", "n_keyhole", "n_lof", "mean_sf", "mean_sf_key", "mean_sf_lof", "porosity_binary", "porosity_keyhole", "porosity_lof"]
 CLASSES = ['lack of fusion', 'keyhole']
 
-sets = ['Q6', 'R6', 'G8', 'H6R', 'J3R', 'Q3']
-'''
+
 sets = [
 'G7',
 #'G8',
@@ -185,7 +184,7 @@ sets = [
 "H0"#,
 #'Q6'
 ]
-'''
+
 
 process_params_df = pd.read_csv('/home/azstaszewska/Data/MS Data/AlSi10Mg_T160C_MQP_studies.csv')
 bounding_rect_sample = Polygon([[s_col_min, s_row_min], [s_col_min, s_row_max], [s_col_max, s_row_max], [s_col_max, s_row_min]])
@@ -206,7 +205,7 @@ for s in sets:
     cv2.rectangle(img, pt1=(s_col_min, s_row_min), pt2=(s_col_max, s_row_max), color=(0,0,0), thickness=5)
     cv2.imwrite("/home/azstaszewska/Data/MS Data/Stitched Final/" + s+"_subsection_overlay.png", img)
 
-    masked_img = img[s_row_min:s_row_max, s_col_min:s_col_max] 
+    masked_img = img[s_row_min:s_row_max, s_col_min:s_col_max]
     cv2.imwrite("/home/azstaszewska/Data/MS Data/Stitched Final/" + s+"_subsection.png", masked_img)
 
 

@@ -14,7 +14,7 @@ id = "all_v5_new_17"
 RESULTS_FOLDER = "/home/azstaszewska/Data/MS Data/Results/"
 
 RANDOM_STATE = 42
-#define custom function which returns single output as metric score
+#define custom MAPE function
 def MAPE(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
@@ -23,19 +23,19 @@ mape_scorer = make_scorer(MAPE)
 print(sorted(sklearn.metrics.SCORERS.keys()))
 
 # load data
-df = pd.read_csv('/home/azstaszewska/Data/MS Data/sample_summary_v6.csv', )
+df = pd.read_csv('/home/azstaszewska/Data/MS Data/sample_summary_v6.csv', ) #input file
 df = df.dropna()
-X = df[["laser_power", "scan_speed", "hatch_spacing"]]
+X = df[["laser_power", "scan_speed", "hatch_spacing"]] #features to train on
 
 scaler = StandardScaler().fit(X)
 X_scaled = scaler.transform(X)
 
-y = 100-df["porosity_lof"]*100
+#y = 100-df["porosity_lof"]*100 #solid ratio
+y = df["porosity"]*100
 #set up model
-cv = LeavePOut(p=2)
+cv = LeavePOut(p=2) #define cross-validation method
 
 
-scoring = ["neg_mean_squared_error", "neg_root_mean_squared_error", "neg_mean_absolute_error", "neg_mean_absolute_percentage_error", "r2"]
 scoring = {"neg_mean_squared_error": "neg_mean_squared_error",
 "neg_root_mean_squared_error": "neg_root_mean_squared_error",
 "neg_mean_absolute_error":"neg_mean_absolute_error",

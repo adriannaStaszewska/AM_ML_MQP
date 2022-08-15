@@ -1,0 +1,12 @@
+*.jar
+*.out
+*.iml
+*.xml
+*.name
+*.h5
+*.tif
+*.png
+*.json
+*.pyc
+/.idea/.gitignore
+/.ipynb_checkpoints/
