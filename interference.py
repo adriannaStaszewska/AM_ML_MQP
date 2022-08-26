@@ -11,9 +11,21 @@ import os
 import cv2
 from pathlib import Path
 
+
+class CocoTrainer(DefaultTrainer):
+  @classmethod
+  def build_evaluator(cls, cfg, dataset_name, output_folder=None):
+    if output_folder is None:
+        os.makedirs("coco_eval", exist_ok=True)
+        output_folder = "coco_eval"
+
+    return COCOEvaluator(dataset_name, cfg, False, output_folder)
+
+
+
 out_path = "/home/azstaszewska/Data/Predictions/Test/"
 
-for d in ["train_trim_1", "val_trim_1"]:
+for d in ["train_full_new_2", "val_full_new_2", "test_full_new_2"]:
 	DatasetCatalog.register("dataset_"+d, lambda d=d: json.load(open("/home/azstaszewska/Data/Detectron full set/final/"+d+".json")))
 	MetadataCatalog.get("dataset_"+d).set(thing_classes=['lack of fusion', 'keyhole'])
 	MetadataCatalog.get("dataset_"+d).set(thing_colors=[[0, 80, 184], [184,0,0]])
@@ -26,8 +38,8 @@ cfg.merge_from_file(model_zoo.get_config_file('COCO-InstanceSegmentation/mask_rc
 
 cfg.INPUT.MAX_SIZE_TRAIN = 2500
 
-cfg.DATASETS.TRAIN = ("dataset_train_trim_1",)
-cfg.DATASETS.TEST = ("dataset_val_trim_1",)
+cfg.DATASETS.TRAIN = ("dataset_train_full_new_2",)
+cfg.DATASETS.TEST = ("dataset_val_full_new_2",)
 
 cfg.SOLVER.IMS_PER_BATCH = 2
 cfg.SOLVER.CHECKPOINT_PERIOD = 200
@@ -43,11 +55,35 @@ cfg.MODEL.RPN.POST_NMS_TOPK_TRAIN = 3000
 cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
 
 cfg.TEST.DETECTIONS_PER_IMAGE = 50
-cfg.MODEL.WEIGHTs = str("/home/azstaszewska/Models/detectron_2class_trimmed_tight_0001/model_final.pth")
+cfg.MODEL.WEIGHTs = str("/home/azstaszewska/Models/final_model_full_adj_masks_1/model_final.pth")
+
+
+trainer = CocoTrainer(cfg)  # create trainer object from cfg
+trainer.resume_or_load(resume=True)  # load weights
 
 predictor = DefaultPredictor(cfg)
-dataset_stuff =  DatasetCatalog.get("dataset_val_trim_1")
-metadata = MetadataCatalog.get("dataset_val_trim_1")
+evaluator = COCOEvaluator("dataset_val_full_new_2", output_dir="/home/azstaszewska/output/final_model_full_adj_masks_1")
+
+val_loader = build_detection_test_loader(cfg, 'dataset_val_full_new_2')
+inference_on_dataset(trainer.model, val_loader, evaluator)
+print(evaluator.evaluate())
+
+print("___________________VALID__________________________")
+
+train_loader = build_detection_test_loader(cfg, 'dataset_train_full_new_2')
+inference_on_dataset(trainer.model, train_loader, evaluator)
+
+print(evaluator.evaluate())
+
+print("___________________TEST__________________________")
+train_loader = build_detection_test_loader(cfg, 'dataset_test_full_new_2')
+inference_on_dataset(trainer.model, train_loader, evaluator)
+
+print(evaluator.evaluate())
+
+
+dataset_stuff =  DatasetCatalog.get("dataset_test_full_new_2")
+metadata = MetadataCatalog.get("dataset_test_full_new_2")
 rand_set = random.sample(dataset_stuff, 60)
 for d in rand_set:
 
@@ -61,5 +97,3 @@ for d in rand_set:
 	v = Visualizer(im[:, :, ::-1],metadata=metadata, scale=2,instance_mode=1)
 	out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
 	cv2.imwrite(out_path + d["file_name"].split("/")[-1], out.get_image()[:, :, ::-1])
-
-

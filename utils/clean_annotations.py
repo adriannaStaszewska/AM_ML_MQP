@@ -28,6 +28,7 @@ sets = [
 'J4R',
 'J5',
 'J8',
+'J5',
 'J9',
 'K0R',
 'K1',
@@ -49,7 +50,7 @@ sets = [
 
 for s in sets:
     print(s)
-    ann_path = "/home/azstaszewska/Data/MS Data/Sets/Labelme sets/v2 fixed/" + s + "_50_v2.json"
+    ann_path = "/home/azstaszewska/Data/MS Data/Sets/Labelme sets/final/" + s + "_50_v2.json"
     f_ann = open(ann_path, )
     annotation_json = json.load(f_ann)
     shapes = []
@@ -67,10 +68,15 @@ for s in sets:
             center = (f["points"][0][0], f["points"][0][1])
             buffer = math.sqrt((center[0]-f["points"][1][0])**2+(center[1]-f["points"][1][1])**2)
             polygon = Point(center).buffer(buffer).exterior.coords
-        if f["shape_type"] == "rectangle" or f["label"] == "area":
+        if f["shape_type"] == "rectangle":
+            col_min, col_max = int(min(f['points'][0][0], f['points'][1][0])), int(max(f['points'][0][0], f['points'][1][0]))
+            row_min, row_max = int(min(f['points'][0][1], f['points'][1][1])), int(max(f['points'][0][1], f['points'][1][1]))
+            polygon = [[col_min, row_min], [col_max, row_min], [col_max, row_max], [col_min, row_max]]
+        if f["label"] == "area":
             continue
         data["class_name"] = f["label"]
-        data["polygon"] = [(p[0], p[1]) for p in polygon]
+        data["points"] = [(p[0], p[1]) for p in polygon]
+        data["shape_type"] = "polygon"
         new_annotations.append(data)
 
 
@@ -82,8 +88,11 @@ for s in sets:
         print("NOT MERGED YET")
         i = 0
         for a1 in new_annotations:
+            if a1["class_name"] == "Region":
+                merged_annotaions.append(a1)
+                continue
             merged_i = False
-            p1 = Polygon(a1["polygon"])
+            p1 = Polygon(a1["points"])
             if not p1.is_valid:
                 p1 = p1.buffer(0)
                 if p1.geom_type=='MultiPolygon':
@@ -99,9 +108,9 @@ for s in sets:
                     p1 = max_poly
                 x, y = p1.exterior.coords.xy
                 p1_xy = list(zip(x, y))
-                a1["polygon"] = p1_xy
+                a1["points"] = p1_xy
             for a2 in new_annotations[i+1:]:
-                p2 = Polygon(a2["polygon"])
+                p2 = Polygon(a2["points"])
                 if not p2.is_valid:
                     p2 = p2.buffer(0)
                     if p2.geom_type=='MultiPolygon':
@@ -116,14 +125,14 @@ for s in sets:
                         p2 = max_poly
                     x, y = p2.exterior.coords.xy
                     p2_xy = list(zip(x, y))
-                    a2["polygon"] = p2_xy
+                    a2["points"] = p2_xy
                 if p1.intersects(p2) and a1["class_name"] == a2["class_name"]:
                     print("OVERLAP")
                     p3 = p1.union(p2)
                     x, y = p3.exterior.coords.xy
                     p4 = list(zip(x, y))
                     a3 = a1
-                    a3["polygon"] = p4
+                    a3["points"] = p4
                     merged_annotaions.append(a3)
                     new_annotations.remove(a2)
                     merged = False
@@ -136,5 +145,7 @@ for s in sets:
                 merged_annotaions.append(a1)
         new_annotations = merged_annotaions
     print(str(len(new_annotations)))
-    with open("/home/azstaszewska/Data/MS Data/Sets/v2 fixed sets/" + s +".json", "w+") as f:
-        json.dump(merged_annotaions, f)
+    out = {"shapes":[]}
+    out["shapes"] = new_annotations
+    with open("/home/azstaszewska/Data/MS Data/Sets/final fixed/" + s +".json", "w") as f:
+        json.dump(out, f)

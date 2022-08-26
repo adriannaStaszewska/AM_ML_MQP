@@ -24,9 +24,14 @@ class CocoTrainer(DefaultTrainer):
 
     return COCOEvaluator(dataset_name, cfg, False, output_folder)
 
-for d in ["train_trim_1", "val_trim_1"]:
+for d in ["train_full_new_2", "val_full_new_2", "test_full_new_2"]:
 	DatasetCatalog.register("dataset_"+d, lambda d=d: json.load(open("/home/azstaszewska/Data/Detectron full set/final/"+d+".json")))
 	MetadataCatalog.get("dataset_"+d).set(thing_classes=['lack of fusion', 'keyhole'])
+
+for d in ["test_full_new_2"]:
+	DatasetCatalog.register("dataset_"+final, lambda d=d: json.load(open("/home/azstaszewska/Data/Detectron full set/final/"+d+".json")))
+	MetadataCatalog.get("dataset_"+final).set(thing_classes=['lack of fusion', 'keyhole'])
+
 
 
 cfg = get_cfg()
@@ -34,8 +39,8 @@ cfg.merge_from_file(model_zoo.get_config_file('COCO-InstanceSegmentation/mask_rc
 
 cfg.INPUT.MAX_SIZE_TRAIN = 2500
 
-cfg.DATASETS.TRAIN = ("dataset_train_trim_1",)
-cfg.DATASETS.TEST = ("dataset_val_trim_1",)
+cfg.DATASETS.TRAIN = ("dataset_train_full_new_2",)
+cfg.DATASETS.TEST = ("dataset_val_full_new_2",)
 
 cfg.SOLVER.IMS_PER_BATCH = 2
 cfg.SOLVER.CHECKPOINT_PERIOD = 200
@@ -63,7 +68,7 @@ else:
     weights_path = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     print('Weights not found, weights will be downloaded from source: {}'.format(weights_path))
 cfg.MODEL.WEIGHTS = str(weights_path)
-cfg.OUTPUT_DIR = "/home/azstaszewska/Models/final_model_trim_4"
+cfg.OUTPUT_DIR = "/home/azstaszewska/Models/final_model_full_adj_masks_2"
 # make the output directory
 os.makedirs(Path(cfg.OUTPUT_DIR), exist_ok=True)
 
@@ -72,12 +77,11 @@ trainer.resume_or_load(resume=False)  # start training from iteration 0
 trainer.train()  # train the model!
 
 model_checkpoints = sorted(Path(cfg.OUTPUT_DIR).glob('*.pth'))  # paths to weights saved druing training
-cfg.DATASETS.TEST = ("dataset_val_trim_1",)  # predictor requires this field to not be empty
 cfg.MODEL.WEIGHTS = str(model_checkpoints[-1])  # use the last model checkpoint saved during training. If you want to see the performance of other checkpoints you can select a different index from model_checkpoints.
-os.makedirs(Path("/home/azstaszewska/output/final_model_trim_4"), exist_ok=True)
+os.makedirs(Path("/home/azstaszewska/output/final_model_full_adj_masks_2"), exist_ok=True)
 
 predictor = DefaultPredictor(cfg)  # create predictor object
-evaluator = COCOEvaluator("dataset_val_trim_1", output_dir="/home/azstaszewska/output/final_model_trim_4")
+evaluator = COCOEvaluator("dataset_val_full_new_2", output_dir="/home/azstaszewska/output/final_model_full_adj_masks_2")
 
 '''
 with open("/work/azstaszewska/configs/config9.yaml", "w") as f:
@@ -93,10 +97,33 @@ for d in random.sample(dataset_stuff, 20):
 	out.save(out_path + d["file_name"].split("/")[-1])
 
 '''
-val_loader = build_detection_test_loader(cfg, 'dataset_val_trim_1')
-inference_on_dataset(trainer.model, val_loader, evaluator)
+os.makedirs(Path("/home/azstaszewska/output/final_model_full_adj_masks_val"), exist_ok=True)
+os.makedirs(Path("/home/azstaszewska/output/final_model_full_adj_masks_test"), exist_ok=True)
+os.makedirs(Path("/home/azstaszewska/output/final_model_full_adj_masks_final"), exist_ok=True)
+
+os.makedirs(Path("/home/azstaszewska/output/final_model_full_adj_masks_train"), exist_ok=True)
+
+print("___________________TEST__________________________")
+evaluator = COCOEvaluator("dataset_test_full_new_2", output_dir="/home/azstaszewska/output/final_model_full_adj_masks_test")
+train_loader = build_detection_test_loader(cfg, 'dataset_test_full_new_2')
+inference_on_dataset(trainer.model, train_loader, evaluator) #test
 print(evaluator.evaluate())
 
-train_loader = build_detection_test_loader(cfg, 'dataset_train_trim_1')
-inference_on_dataset(trainer.model, train_loader, evaluator)
+print("___________________TEST 2__________________________")
+val_loader = build_detection_test_loader(cfg, 'dataset_final')
+evaluator = COCOEvaluator("dataset_final", output_dir="/home/azstaszewska/output/final_model_full_adj_masks_final")
+inference_on_dataset(trainer.model, val_loader, evaluator) #test2
+print(evaluator.evaluate())
 
+
+print("___________________VALIDATION__________________________")
+val_loader = build_detection_test_loader(cfg, 'dataset_val_full_new_2')
+evaluator = COCOEvaluator("dataset_val_full_new_2", output_dir="/home/azstaszewska/output/final_model_full_adj_masks_val")
+inference_on_dataset(trainer.model, val_loader, evaluator) #val
+print(evaluator.evaluate())
+
+print("___________________TRAIN__________________________")
+train_loader = build_detection_test_loader(cfg, 'dataset_train_full_new_2')
+evaluator = COCOEvaluator("dataset_train_full_new_2", output_dir="/home/azstaszewska/output/final_model_full_adj_masks_train")
+inference_on_dataset(trainer.model, train_loader, evaluator) #train
+print(evaluator.evaluate())

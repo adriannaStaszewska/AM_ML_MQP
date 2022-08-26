@@ -11,10 +11,46 @@ import labelme
 import base64
 
 ROOT_IMG_DIR ="/home/azstaszewska/Data/MS Data/Stitched Final/"
-IMG_OUT_DIR = '/home/azstaszewska/Data/MS Data/Split/Images/'
-LABELS_OUT_DIR = '/home/azstaszewska/Data/MS Data/Split/Labels/'
+ROOT_LABEL_DIR = "/home/azstaszewska/Data/MS Data/Sets/final fixed/"
+IMG_OUT_DIR = '/home/azstaszewska/Data/MS Data/Split/Images2/'
+LABELS_OUT_DIR = '/home/azstaszewska/Data/MS Data/Split/Labels2/'
 
-sets_name = ["G0", "G8", "G9", "H0", "H4", "H5", "H6R", "H7", "J3", "J4", "J4R", "K0R", "K1", "K5", "Q0", "Q4", "Q6", "R0", "R2", "R6", "R6R", "G7", "H3"]
+sets_name = [
+'G7',
+'G8',
+'G9',
+"H3",
+'H4',
+'H4R',
+'H6R',
+'H7',
+'H9',
+'J0',
+'J1',
+'J3',
+"J3R",
+'J4',
+'J4R',
+'J5',
+'J8',
+'J9',
+'K0R',
+'K1',
+'K4',
+'K5',
+'Q3',
+'Q4',
+'Q5',
+'Q9',
+'R0',
+"R6",
+'R6R',
+'R7',
+"G0",
+"H0",
+#"R2",
+'Q6'
+]
 stitched = True
 SETS = [
 'G7',
@@ -54,7 +90,7 @@ SETS = [
 "G0",
 "H0",
 "Q0",
-"R2",
+#"R2",
 'Q6'
 ]
 
@@ -68,7 +104,7 @@ if stitched: #to be used on stitched images
         os.makedirs(LABELS_OUT_DIR+set, exist_ok=True)
         os.makedirs(IMG_OUT_DIR+set, exist_ok=True)
 
-        annotation_json = json.load(open(ROOT_IMG_DIR+set+".json"))
+        annotation_json = json.load(open(ROOT_LABEL_DIR+set+".json"))
         img = cv2.imread(ROOT_IMG_DIR+set + ".png")
         if img is None:
             img = cv2.imread(ROOT_IMG_DIR+set+ '.tif')
@@ -76,7 +112,8 @@ if stitched: #to be used on stitched images
         regions = []
         instances = []
         for label in annotation_json["shapes"]:
-            if label["label"] == "Region":
+
+            if label["class_name"] == "Region":
                 regions.append(label)
             else:
                 instances.append(label)
@@ -144,13 +181,13 @@ if stitched: #to be used on stitched images
                     	new_ins = new_ins2
                     new_label["points"] = new_ins
                     print(new_label["points"])
-                    new_label["label"] = l["label"]
+                    new_label["label"] = l["class_name"]
                     new_label["shape_type"] = l["shape_type"]
                     shapes.append(new_label)
             new_annot["shapes"] = shapes
-            cv2.imwrite(IMG_OUT_DIR+set+"/"+set+'_'+ str(i)+'.png', cropped_img)
-            data = labelme.LabelFile.load_image_file(IMG_OUT_DIR+set+"/"+set+'_'+ str(i)+'.png')
-            new_annot['imageData'] = base64.b64encode(data).decode('utf-8')
+            #cv2.imwrite(IMG_OUT_DIR+set+"/"+set+'_'+ str(i)+'.png', cropped_img)
+            #data = labelme.LabelFile.load_image_file(IMG_OUT_DIR+set+"/"+set+'_'+ str(i)+'.png')
+            #new_annot['imageData'] = base64.b64encode(data).decode('utf-8')
             new_annot['flags'] = {}
             new_annot['version'] = "4.6.0"
             new_annot['imagePath'] =IMG_OUT_DIR+set+"/"+set+'_'+ str(i)+'.png'
